@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-red= cyan= reset=
+red='' cyan='' reset=''
 if [ -z "${NO_COLOR:-}" ] && [ "${TERM:-}" != dumb ]; then
     if [ -t 1 ] || [ "${FORCE_COLOR:-0}" = 1 ]; then
         red=$(printf '\033[31m')

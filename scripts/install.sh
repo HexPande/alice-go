@@ -3,7 +3,7 @@ set -Eeuo pipefail
 umask 077
 
 init_colors() {
-  red= green= yellow= cyan= bold= reset=
+  red='' green='' yellow='' cyan='' bold='' reset=''
   if [[ -z ${NO_COLOR:-} && ${TERM:-} != dumb ]] && [[ -t 1 || ${FORCE_COLOR:-0} == 1 ]]; then
     red=$'\033[31m' green=$'\033[32m' yellow=$'\033[33m'
     cyan=$'\033[36m' bold=$'\033[1m' reset=$'\033[0m'
@@ -24,11 +24,17 @@ print_admin_url() {
   printf '\n%s%shttp://%s/_/%s\n' "$bold" "$cyan" "$authority" "$reset"
 }
 
-# Allow the output formatter to be tested without running an installation.
-if [[ ${BASH_SOURCE[0]} != "$0" ]]; then
-  return
-fi
+cleanup() {
+  local status=$?
+  if [[ $restart_old == true ]]; then
+    warn 'Возобновление прежнего сервиса после прерванного обновления.'
+    "${root[@]}" systemctl start alice-go || error 'Не удалось запустить прежний сервис.'
+  fi
+  rm -rf "$tmp"
+  return "$status"
+}
 
+main() {
 if [[ ${1:-} == --help ]]; then
   printf '%salice-go — установка и обновление%s\n' "$bold" "$reset"
   printf 'Использование: bash install.sh [latest|v0.1.0]\nDebian или Ubuntu (ARM), с правами sudo.\n'
@@ -64,16 +70,7 @@ flock -n 9 || die 'Другой установщик уже запущен.'
 
 tmp=$(mktemp -d)
 restart_old=false
-cleanup() {
-  local status=$?
-  if [[ $restart_old == true ]]; then
-    warn 'Возобновление прежнего сервиса после прерванного обновления.'
-    "${root[@]}" systemctl start alice-go || error 'Не удалось запустить прежний сервис.'
-  fi
-  rm -rf "$tmp"
-  return "$status"
-}
-trap cleanup EXIT
+trap 'cleanup' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
@@ -154,9 +151,9 @@ else
 fi
 # The application parses YAML through Viper; the shell does not parse YAML.
 port=$("$tmp/alice" config-port --config "$tmp/config.yaml")
-[[ $port =~ ^[0-9]{1,5}$ ]] && ((port >= 1 && port <= 65535)) || {
+if [[ ! $port =~ ^[0-9]{1,5}$ ]] || ((port < 1 || port > 65535)); then
   die 'Релиз не вернул корректный порт из YAML-конфига.'
-}
+fi
 success "Порт сервиса: $port"
 
 if ! id alice-go >/dev/null 2>&1; then
@@ -243,3 +240,9 @@ done
 warn "Резервная копия: $backup"
 warn 'Журнал: sudo journalctl -u alice-go -n 100 --no-pager'
 die 'Приложение не прошло проверку запуска. Сервис остановлен.'
+}
+
+# Sourcing exposes the formatters to tests without starting an installation.
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+  main "$@"
+fi

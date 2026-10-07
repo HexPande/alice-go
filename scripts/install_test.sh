@@ -38,12 +38,12 @@ output=$(print_admin_url fd00::1 9000)
 [[ $output == $'\nhttp://[fd00::1]:9000/_/' ]]
 printf 'Admin URLs: 3 tests passed.\n'
 
-TERM=xterm FORCE_COLOR=1 NO_COLOR= init_colors
+TERM=xterm FORCE_COLOR=1 NO_COLOR='' init_colors
 [[ $(success 'ready') == $'\033[32m✓ ready\033[0m' ]]
 [[ $(error 'failed' 2>&1) == $'\033[31m✗ failed\033[0m' ]]
 [[ $(warn 'warning' 2>&1) == $'\033[33m! warning\033[0m' ]]
 NO_COLOR=1 FORCE_COLOR=1 init_colors
 [[ $(success 'ready') == '✓ ready' ]]
-TERM=dumb FORCE_COLOR=1 NO_COLOR= init_colors
+TERM=dumb FORCE_COLOR=1 NO_COLOR='' init_colors
 [[ $(info 'step') == '→ step' ]]
 printf 'Colors: 5 tests passed.\n'
