@@ -9,14 +9,19 @@ import (
 
 	"github.com/HexPande/alice-go/internal/alice"
 	"github.com/HexPande/alice-go/internal/server"
-	"github.com/pocketbase/pocketbase"
+	_ "github.com/HexPande/alice-go/migrations"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tests"
 	"github.com/pocketbase/pocketbase/tools/router"
 )
 
 func TestRoutes(t *testing.T) {
 	t.Parallel()
-	app := pocketbase.New()
+	app, err := tests.NewTestApp(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(app.Cleanup)
 	server.Register(app)
 	r := router.NewRouter(func(w http.ResponseWriter, req *http.Request) (*core.RequestEvent, router.EventCleanupFunc) {
 		e := &core.RequestEvent{App: app}

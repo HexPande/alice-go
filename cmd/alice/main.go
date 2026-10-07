@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/HexPande/alice-go/internal/server"
+	_ "github.com/HexPande/alice-go/migrations"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 	"github.com/pocketbase/pocketbase/tools/osutils"

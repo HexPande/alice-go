@@ -3,8 +3,10 @@ package server
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/HexPande/alice-go/internal/alice"
+	"github.com/HexPande/alice-go/internal/assistant"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -12,15 +14,23 @@ import (
 // Register attaches public webhook routes to the application's serving hook.
 func Register(app core.App) {
 	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
+		skill := &assistant.Skill{
+			LoadSettings: func() (assistant.Settings, error) { return assistant.Load(app) },
+			Client: &http.Client{
+				Timeout:       3500 * time.Millisecond,
+				CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+			},
+			Logger: app.Logger(),
+		}
 		e.Router.GET("/healthz", func(e *core.RequestEvent) error {
 			return e.JSON(http.StatusOK, map[string]string{"status": "ok"})
 		})
-		e.Router.POST("/alice", webhook).Bind(apis.BodyLimit(1 << 20))
+		e.Router.POST("/alice", func(e *core.RequestEvent) error { return webhook(e, skill) }).Bind(apis.BodyLimit(1 << 20))
 		return e.Next()
 	})
 }
 
-func webhook(e *core.RequestEvent) error {
+func webhook(e *core.RequestEvent, skill *assistant.Skill) error {
 	var req alice.Request
 	if err := e.BindBody(&req); err != nil {
 		return e.BadRequestError("Invalid request body.", err)
@@ -31,5 +41,5 @@ func webhook(e *core.RequestEvent) error {
 	if req.Request.Type != "SimpleUtterance" && req.Request.Type != "ButtonPressed" {
 		return e.BadRequestError("Unsupported request type.", nil)
 	}
-	return e.JSON(http.StatusOK, alice.Handle(req))
+	return e.JSON(http.StatusOK, skill.Handle(e.Request.Context(), req))
 }
