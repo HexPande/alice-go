@@ -84,7 +84,7 @@ stage='подготовка'
 trap 'error "Не удалось выполнить этап: $stage"' ERR
 [[ $# -le 1 ]] || die 'Укажите не более одного тега релиза.'
 info 'Проверка системы'
-check_system
+check_system /etc/os-release /run/systemd/system
 
 root=()
 if [[ $EUID -ne 0 ]]; then
@@ -110,7 +110,7 @@ if [[ $version == latest ]]; then
   release_url=$(curl --fail --silent --show-error --location --connect-timeout 15 --max-time 60 \
     https://github.com/HexPande/alice-go/releases/latest --output /dev/null --write-out '%{url_effective}')
   [[ $release_url == https://github.com/HexPande/alice-go/releases/tag/* ]] || {
-    die 'Опубликованный стабильный релиз не найден.'
+    die 'Стабильный релиз ещё не опубликован: https://github.com/HexPande/alice-go/releases'
   }
   version=${release_url##*/}
 fi
