@@ -11,7 +11,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build \
 
 for target in linux-arm64 linux-armv7; do
   tar -czf "dist/alice-go_${target}.tar.gz" \
-    -C "dist/${target}" alice -C ../.. README.md scripts/install.sh
+    -C "dist/${target}" alice -C ../.. README.md install.sh
 done
 
 (

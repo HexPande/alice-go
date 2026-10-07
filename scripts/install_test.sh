@@ -5,30 +5,40 @@ set -euo pipefail
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/bin" "$tmp/work"
+cat > "$tmp/bin/uname" <<'MOCK'
+#!/bin/sh
+case "$1" in
+  -s) printf '%s\n' "${TEST_OS:-Linux}" ;;
+  -m) printf '%s\n' "${TEST_MACHINE:-aarch64}" ;;
+esac
+MOCK
+chmod +x "$tmp/bin/uname"
 cat > "$tmp/bin/curl" <<'MOCK'
 #!/bin/sh
-if [ "${FAIL_DOWNLOAD:-0}" = 1 ]; then exit 22; fi
-while [ "$#" -gt 0 ]; do
-  if [ "$1" = --output ]; then shift; output=$1; fi
-  shift
-done
-printf '#!/bin/bash\nprintf "installer:%%s\\n" "$*"\n' > "$output"
+printf 'Unexpected network call in installer tests.\n' >&2
+exit 99
 MOCK
 chmod +x "$tmp/bin/curl"
 export PATH="$tmp/bin:$PATH" TMPDIR="$tmp/work"
 entrypoint=$(cat install.sh)
-[[ $(sh -c "$entrypoint") == 'installer:' ]]
-[[ $(sh -c "$entrypoint" -- v0.1.0) == 'installer:v0.1.0' ]]
+[[ $(sh -c "$entrypoint" -- --help) == *'Использование:'* ]]
+[[ $(sh install.sh --help) == *'Использование:'* ]]
 status=0
-FAIL_DOWNLOAD=1 sh -c "$entrypoint" > "$tmp/output" || status=$?
-[[ $status == 22 && ! -s $tmp/output ]]
+sh -c "$entrypoint" -- v0.1.0 extra > "$tmp/output" 2>&1 || status=$?
+[[ $status == 1 && $(cat "$tmp/output") == *'не более одного тега'* ]]
 shopt -s nullglob
 leftovers=("$tmp/work/"*)
 [[ ${#leftovers[@]} == 0 ]]
 printf 'Installer entry point: 3 tests passed.\n'
 
-# shellcheck source=scripts/install.sh
-source scripts/install.sh
+# Check and source the exact embedded payload, rather than a duplicate implementation.
+sed '1,/^# BEGIN BASH INSTALLER$/d; /^# END BASH INSTALLER$/,$d' install.sh > "$tmp/payload.sh"
+bash -n "$tmp/payload.sh"
+if command -v shellcheck >/dev/null 2>&1; then
+  shellcheck --shell=bash "$tmp/payload.sh"
+fi
+# shellcheck source=/dev/null
+source "$tmp/payload.sh"
 NO_COLOR=1 init_colors
 output=$(print_admin_url 192.168.1.50 9000)
 [[ $output == $'\nhttp://192.168.1.50:9000/_/' ]]
@@ -47,3 +57,21 @@ NO_COLOR=1 FORCE_COLOR=1 init_colors
 TERM=dumb FORCE_COLOR=1 NO_COLOR='' init_colors
 [[ $(info 'step') == '→ step' ]]
 printf 'Colors: 5 tests passed.\n'
+
+# OS checks run before sudo or any changes to the installed service.
+mkdir -p "$tmp/systemd"
+printf 'ID=fedora\nPRETTY_NAME="Fedora Linux"\n' > "$tmp/os-release"
+status=0
+(check_system "$tmp/os-release" "$tmp/systemd") > "$tmp/output" 2>&1 || status=$?
+[[ $status == 1 && $(cat "$tmp/output") == *'не поддерживается'* ]]
+printf 'ID=debian\nPRETTY_NAME="Debian GNU/Linux"\n' > "$tmp/os-release"
+status=0
+(check_system "$tmp/os-release" "$tmp/no-systemd") > "$tmp/output" 2>&1 || status=$?
+[[ $status == 1 && $(cat "$tmp/output") == *'работающий systemd'* ]]
+status=0
+(check_system "$tmp/missing-os-release" "$tmp/systemd") > "$tmp/output" 2>&1 || status=$?
+[[ $status == 1 && $(cat "$tmp/output") == *'определить ОС'* ]]
+status=0
+TEST_OS=Darwin sh -c "$entrypoint" > "$tmp/output" 2>&1 || status=$?
+[[ $status == 1 && $(cat "$tmp/output") == *'только Linux'* ]]
+printf 'System requirements: 4 tests passed.\n'
