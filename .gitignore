@@ -1,0 +1,6 @@
+/bin/
+/dist/
+/coverage.out
+/pb_data/
+.env
+.DS_Store
