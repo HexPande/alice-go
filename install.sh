@@ -88,7 +88,6 @@ check_system
 
 root=()
 if [[ $EUID -ne 0 ]]; then
-  sudo -v
   root=(sudo)
 fi
 "${root[@]}" install -d -m 0755 /opt/alice-go
