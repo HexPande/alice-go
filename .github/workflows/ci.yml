@@ -36,6 +36,12 @@ jobs:
         run: test -z "$(gofmt -l cmd internal)"
       - name: Test
         run: go test -race -shuffle=on ./...
+      - name: Check installer
+        run: |
+          sh -n install.sh
+          bash -n scripts/install.sh scripts/package.sh
+          shellcheck install.sh scripts/install.sh scripts/package.sh scripts/install_test.sh
+          bash scripts/install_test.sh
       - name: Vet
         run: go vet ./...
       - name: Lint
