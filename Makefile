@@ -1,6 +1,6 @@
 .PHONY: run build package test lint fmt
 
-HTTP_ADDR ?= 127.0.0.1:8090
+HTTP_ADDR ?= 0.0.0.0:8090
 
 run:
 	go run ./cmd/alice serve --http=$(HTTP_ADDR) --dir=./pb_data

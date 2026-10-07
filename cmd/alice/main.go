@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/HexPande/alice-go/internal/server"
 	"github.com/pocketbase/pocketbase"
@@ -11,6 +12,14 @@ import (
 
 func main() {
 	app := pocketbase.New()
+	configure(app)
+	// Configuration inspection must not bootstrap or migrate a database.
+	if len(os.Args) > 1 && os.Args[1] == "config-port" {
+		if err := app.RootCmd.Execute(); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
 		Automigrate: osutils.IsProbablyGoRun(),
 	})
